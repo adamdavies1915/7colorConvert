@@ -336,6 +336,15 @@ body {
     margin-bottom: 0;
 }
 
+.footer .disclaimer {
+    font-size: 0.8rem;
+    color: var(--dark-gray);
+    font-style: italic;
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 2px solid var(--gray);
+}
+
 .color-dot {
     display: inline-block;
     width: 20px;
