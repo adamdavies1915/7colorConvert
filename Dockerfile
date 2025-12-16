@@ -13,12 +13,12 @@ COPY health.html .
 COPY css/ ./css/
 COPY js/ ./js/
 
-# Expose port 80
-EXPOSE 80
+# Expose port 3000
+EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost/health.html || exit 1
+    CMD curl -f http://localhost:3000/health.html || exit 1
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]
