@@ -259,6 +259,7 @@ body {
     border: 2px solid var(--black);
     background-color: var(--gray);
     image-rendering: pixelated;
+    cursor: zoom-in;
 }
 
 .preview-placeholder {
@@ -372,7 +373,7 @@ body {
     animation: pulse 1s infinite;
 }
 
-/* Image Modal */
+/* Image Modal - hidden by default, shown via .visible class */
 .image-modal {
     display: none;
     position: fixed;
@@ -385,6 +386,10 @@ body {
     cursor: pointer;
     padding: 20px;
     box-sizing: border-box;
+}
+
+.image-modal.visible {
+    display: block;
 }
 
 .image-modal-content {
@@ -408,10 +413,6 @@ body {
     margin-top: 15px;
     font-family: 'Arial', sans-serif;
     font-size: 0.9rem;
-}
-
-.preview-image {
-    cursor: zoom-in;
 }
 
 /* Responsive */
