@@ -385,9 +385,6 @@ body {
     max-height: 90vh;
 }
 
-.image-popup.hidden {
-    display: none;
-}
 
 .image-popup img {
     display: block;

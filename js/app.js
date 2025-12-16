@@ -292,44 +292,58 @@
     document.addEventListener('drop', (e) => e.preventDefault());
 
     // Image hover popup
-    imageGrid.addEventListener('mouseover', (e) => {
-        if (e.target.classList.contains('preview-image')) {
-            popupImage.src = e.target.src;
-            imagePopup.classList.remove('hidden');
-        }
-    });
+    function showPopup(src, e) {
+        popupImage.src = src;
+        imagePopup.style.display = 'block';
+        positionPopup(e);
+    }
 
-    imageGrid.addEventListener('mouseout', (e) => {
-        if (e.target.classList.contains('preview-image')) {
-            imagePopup.classList.add('hidden');
+    function hidePopup() {
+        imagePopup.style.display = 'none';
+        popupImage.src = '';
+    }
+
+    function positionPopup(e) {
+        const padding = 20;
+        let x = e.clientX + padding;
+        let y = e.clientY + padding;
+
+        // Get popup dimensions after image loads
+        const popupRect = imagePopup.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        // Adjust if popup would go off-screen
+        if (x + popupRect.width > viewportWidth - padding) {
+            x = e.clientX - popupRect.width - padding;
         }
-    });
+        if (y + popupRect.height > viewportHeight - padding) {
+            y = e.clientY - popupRect.height - padding;
+        }
+
+        // Ensure popup doesn't go off left/top edge
+        x = Math.max(padding, x);
+        y = Math.max(padding, y);
+
+        imagePopup.style.left = x + 'px';
+        imagePopup.style.top = y + 'px';
+    }
+
+    imageGrid.addEventListener('mouseenter', (e) => {
+        if (e.target.classList.contains('preview-image')) {
+            showPopup(e.target.src, e);
+        }
+    }, true);
+
+    imageGrid.addEventListener('mouseleave', (e) => {
+        if (e.target.classList.contains('preview-image')) {
+            hidePopup();
+        }
+    }, true);
 
     imageGrid.addEventListener('mousemove', (e) => {
-        if (!imagePopup.classList.contains('hidden')) {
-            const padding = 20;
-            let x = e.clientX + padding;
-            let y = e.clientY + padding;
-
-            // Get popup dimensions
-            const popupRect = imagePopup.getBoundingClientRect();
-            const viewportWidth = window.innerWidth;
-            const viewportHeight = window.innerHeight;
-
-            // Adjust if popup would go off-screen
-            if (x + popupRect.width > viewportWidth - padding) {
-                x = e.clientX - popupRect.width - padding;
-            }
-            if (y + popupRect.height > viewportHeight - padding) {
-                y = e.clientY - popupRect.height - padding;
-            }
-
-            // Ensure popup doesn't go off left/top edge
-            x = Math.max(padding, x);
-            y = Math.max(padding, y);
-
-            imagePopup.style.left = x + 'px';
-            imagePopup.style.top = y + 'px';
+        if (imagePopup.style.display === 'block') {
+            positionPopup(e);
         }
     });
 

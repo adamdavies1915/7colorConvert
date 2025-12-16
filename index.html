@@ -30,9 +30,6 @@
 
         <div id="imageGrid" class="image-grid"></div>
 
-        <div id="imagePopup" class="image-popup hidden">
-            <img id="popupImage" src="" alt="Full size preview">
-        </div>
 
         <div id="progressBar" class="progress-bar hidden">
             <div class="progress-fill" id="progressFill"></div>
@@ -45,6 +42,10 @@
         <p>Output: 800x480 (landscape) or 480x800 (portrait) BMP</p>
         <p class="disclaimer">Note: Preview may appear rough due to dithering at small sizes. Downloaded BMP will display correctly on e-ink.</p>
     </footer>
+
+    <div id="imagePopup" class="image-popup" style="display: none;">
+        <img id="popupImage" src="" alt="">
+    </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="js/libs/floyd-steinberg.js"></script>
