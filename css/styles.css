@@ -372,6 +372,34 @@ body {
     animation: pulse 1s infinite;
 }
 
+/* Image Popup */
+.image-popup {
+    position: fixed;
+    z-index: 1000;
+    background-color: var(--white);
+    border: var(--border-width) solid var(--black);
+    box-shadow: 12px 12px 0 var(--black);
+    padding: 10px;
+    pointer-events: none;
+    max-width: 90vw;
+    max-height: 90vh;
+}
+
+.image-popup.hidden {
+    display: none;
+}
+
+.image-popup img {
+    display: block;
+    max-width: 800px;
+    max-height: 80vh;
+    image-rendering: pixelated;
+}
+
+.preview-image {
+    cursor: zoom-in;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .header h1 {

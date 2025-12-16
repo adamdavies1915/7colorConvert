@@ -22,6 +22,8 @@
     const progressBar = document.getElementById('progressBar');
     const progressFill = document.getElementById('progressFill');
     const progressText = document.getElementById('progressText');
+    const imagePopup = document.getElementById('imagePopup');
+    const popupImage = document.getElementById('popupImage');
 
     // Generate unique ID
     function generateId() {
@@ -288,5 +290,47 @@
     // Prevent default drag behavior on document
     document.addEventListener('dragover', (e) => e.preventDefault());
     document.addEventListener('drop', (e) => e.preventDefault());
+
+    // Image hover popup
+    imageGrid.addEventListener('mouseover', (e) => {
+        if (e.target.classList.contains('preview-image')) {
+            popupImage.src = e.target.src;
+            imagePopup.classList.remove('hidden');
+        }
+    });
+
+    imageGrid.addEventListener('mouseout', (e) => {
+        if (e.target.classList.contains('preview-image')) {
+            imagePopup.classList.add('hidden');
+        }
+    });
+
+    imageGrid.addEventListener('mousemove', (e) => {
+        if (!imagePopup.classList.contains('hidden')) {
+            const padding = 20;
+            let x = e.clientX + padding;
+            let y = e.clientY + padding;
+
+            // Get popup dimensions
+            const popupRect = imagePopup.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            // Adjust if popup would go off-screen
+            if (x + popupRect.width > viewportWidth - padding) {
+                x = e.clientX - popupRect.width - padding;
+            }
+            if (y + popupRect.height > viewportHeight - padding) {
+                y = e.clientY - popupRect.height - padding;
+            }
+
+            // Ensure popup doesn't go off left/top edge
+            x = Math.max(padding, x);
+            y = Math.max(padding, y);
+
+            imagePopup.style.left = x + 'px';
+            imagePopup.style.top = y + 'px';
+        }
+    });
 
 })();
