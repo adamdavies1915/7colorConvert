@@ -148,9 +148,16 @@ const ImageConverter = {
         // Apply Floyd-Steinberg dithering with 7-color palette
         const ditheredData = FloydSteinberg.dither(imageData, null, dither);
 
-        // Encode to BMP
+        // Encode to BMP for download
         const blob = BMPEncoder.encode(ditheredData);
-        const dataURL = await BMPEncoder.toDataURL(ditheredData);
+
+        // Create PNG preview (browsers render PNG much better than BMP)
+        const previewCanvas = document.createElement('canvas');
+        previewCanvas.width = target.width;
+        previewCanvas.height = target.height;
+        const previewCtx = previewCanvas.getContext('2d');
+        previewCtx.putImageData(ditheredData, 0, 0);
+        const previewDataURL = previewCanvas.toDataURL('image/png');
 
         // Clean up
         URL.revokeObjectURL(img.src);
@@ -158,7 +165,7 @@ const ImageConverter = {
         return {
             imageData: ditheredData,
             blob: blob,
-            dataURL: dataURL,
+            dataURL: previewDataURL,
             width: target.width,
             height: target.height,
             orientation: target.width > target.height ? 'landscape' : 'portrait'
