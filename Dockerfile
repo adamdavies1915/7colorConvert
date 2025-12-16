@@ -8,10 +8,13 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Create directories and copy static files
 WORKDIR /usr/share/nginx/html
-COPY index.html .
-COPY health.html .
-COPY css/ ./css/
-COPY js/ ./js/
+COPY --chmod=644 index.html .
+COPY --chmod=644 health.html .
+COPY --chmod=644 css/ ./css/
+COPY --chmod=644 js/ ./js/
+
+# Ensure all files are readable
+RUN chmod -R 755 /usr/share/nginx/html
 
 # Expose port 3000
 EXPOSE 3000
