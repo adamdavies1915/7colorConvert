@@ -253,6 +253,9 @@ body {
 .preview-image {
     max-width: 100%;
     max-height: 200px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
     border: 2px solid var(--black);
     background-color: var(--gray);
     image-rendering: pixelated;
