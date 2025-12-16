@@ -5,9 +5,13 @@
 (function() {
     'use strict';
 
+    // Constants
+    const LANDSCAPE = { width: 800, height: 480 };
+    const PORTRAIT = { width: 480, height: 800 };
+
     // State
     const state = {
-        images: new Map(), // Map of id -> { file, originalDataURL, converted, blob, outputFilename }
+        images: new Map(), // Map of id -> { file, originalDataURL, converted, blob, outputFilename, crop, orientation, imgWidth, imgHeight }
         converting: false
     };
 
@@ -49,8 +53,43 @@
         }
     }
 
-    // Create image card HTML
-    function createImageCard(id, file, originalDataURL) {
+    // Get image dimensions
+    function getImageDimensions(dataURL) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve({ width: img.width, height: img.height });
+            img.src = dataURL;
+        });
+    }
+
+    // Calculate initial crop area (centered, maximum size while maintaining aspect ratio)
+    function calculateInitialCrop(imgWidth, imgHeight, orientation) {
+        const target = orientation === 'landscape' ? LANDSCAPE : PORTRAIT;
+        const aspectRatio = target.width / target.height;
+
+        let cropWidth, cropHeight;
+
+        if (imgWidth / imgHeight > aspectRatio) {
+            // Image is wider than target aspect ratio
+            cropHeight = imgHeight;
+            cropWidth = cropHeight * aspectRatio;
+        } else {
+            // Image is taller than target aspect ratio
+            cropWidth = imgWidth;
+            cropHeight = cropWidth / aspectRatio;
+        }
+
+        return {
+            x: (imgWidth - cropWidth) / 2,
+            y: (imgHeight - cropHeight) / 2,
+            width: cropWidth,
+            height: cropHeight
+        };
+    }
+
+    // Create image card HTML with crop editor
+    function createImageCard(id, file, originalDataURL, imgWidth, imgHeight) {
+        const orientation = imgWidth > imgHeight ? 'landscape' : 'portrait';
         const card = document.createElement('div');
         card.className = 'image-card';
         card.id = `card-${id}`;
@@ -59,14 +98,24 @@
                 <span class="image-card-title" title="${file.name}">${file.name}</span>
                 <span class="image-card-status" id="status-${id}">PENDING</span>
             </div>
+            <div class="crop-editor" id="crop-editor-${id}">
+                <img src="${originalDataURL}" class="crop-editor-image" id="crop-image-${id}" alt="Original">
+                <div class="crop-frame" id="crop-frame-${id}">
+                    <span class="crop-frame-label" id="crop-label-${id}">800 x 480</span>
+                </div>
+            </div>
+            <div class="orientation-toggle">
+                <button class="orientation-btn ${orientation === 'landscape' ? 'active' : ''}" id="landscape-${id}" data-orientation="landscape">
+                    Landscape (800x480)
+                </button>
+                <button class="orientation-btn ${orientation === 'portrait' ? 'active' : ''}" id="portrait-${id}" data-orientation="portrait">
+                    Portrait (480x800)
+                </button>
+            </div>
             <div class="image-preview-container">
                 <div class="preview-section">
-                    <div class="preview-label">Original</div>
-                    <img src="${originalDataURL}" class="preview-image" alt="Original">
-                </div>
-                <div class="preview-section">
-                    <div class="preview-label">Converted</div>
-                    <div class="preview-placeholder" id="preview-${id}">Awaiting conversion</div>
+                    <div class="preview-label">Preview</div>
+                    <div class="preview-placeholder" id="preview-${id}">Adjust crop above, then convert</div>
                 </div>
             </div>
             <div class="image-card-actions">
@@ -76,12 +125,179 @@
             </div>
         `;
 
-        // Event listeners
+        // Event listeners for buttons
         card.querySelector(`#convert-${id}`).addEventListener('click', () => convertSingle(id));
         card.querySelector(`#download-${id}`).addEventListener('click', () => downloadSingle(id));
         card.querySelector(`#remove-${id}`).addEventListener('click', () => removeImage(id));
 
+        // Orientation toggle listeners
+        card.querySelector(`#landscape-${id}`).addEventListener('click', () => setOrientation(id, 'landscape'));
+        card.querySelector(`#portrait-${id}`).addEventListener('click', () => setOrientation(id, 'portrait'));
+
         return card;
+    }
+
+    // Initialize crop frame after card is added to DOM
+    function initializeCropFrame(id) {
+        const imageData = state.images.get(id);
+        if (!imageData) return;
+
+        const cropEditor = document.getElementById(`crop-editor-${id}`);
+        const cropImage = document.getElementById(`crop-image-${id}`);
+        const cropFrame = document.getElementById(`crop-frame-${id}`);
+
+        // Wait for image to load and get displayed dimensions
+        cropImage.onload = () => {
+            updateCropFrame(id);
+            setupCropDrag(id);
+        };
+
+        if (cropImage.complete) {
+            updateCropFrame(id);
+            setupCropDrag(id);
+        }
+    }
+
+    // Update crop frame position and size
+    function updateCropFrame(id) {
+        const imageData = state.images.get(id);
+        if (!imageData) return;
+
+        const cropImage = document.getElementById(`crop-image-${id}`);
+        const cropFrame = document.getElementById(`crop-frame-${id}`);
+        const cropLabel = document.getElementById(`crop-label-${id}`);
+
+        if (!cropImage || !cropFrame) return;
+
+        // Get displayed image dimensions and position
+        const imgRect = cropImage.getBoundingClientRect();
+        const editorRect = cropImage.parentElement.getBoundingClientRect();
+
+        // Calculate scale between original and displayed image
+        const scaleX = imgRect.width / imageData.imgWidth;
+        const scaleY = imgRect.height / imageData.imgHeight;
+
+        // Calculate crop frame position in pixels relative to editor
+        const offsetX = imgRect.left - editorRect.left;
+        const offsetY = imgRect.top - editorRect.top;
+
+        const frameLeft = offsetX + (imageData.crop.x * scaleX);
+        const frameTop = offsetY + (imageData.crop.y * scaleY);
+        const frameWidth = imageData.crop.width * scaleX;
+        const frameHeight = imageData.crop.height * scaleY;
+
+        cropFrame.style.left = frameLeft + 'px';
+        cropFrame.style.top = frameTop + 'px';
+        cropFrame.style.width = frameWidth + 'px';
+        cropFrame.style.height = frameHeight + 'px';
+
+        // Update label
+        const target = imageData.orientation === 'landscape' ? LANDSCAPE : PORTRAIT;
+        cropLabel.textContent = `${target.width} x ${target.height}`;
+    }
+
+    // Setup drag functionality for crop frame
+    function setupCropDrag(id) {
+        const cropFrame = document.getElementById(`crop-frame-${id}`);
+        const cropImage = document.getElementById(`crop-image-${id}`);
+
+        if (!cropFrame || !cropImage) return;
+
+        let isDragging = false;
+        let startX, startY;
+        let startCropX, startCropY;
+
+        cropFrame.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+
+            const imageData = state.images.get(id);
+            startCropX = imageData.crop.x;
+            startCropY = imageData.crop.y;
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+
+        // Touch support
+        cropFrame.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            isDragging = true;
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+
+            const imageData = state.images.get(id);
+            startCropX = imageData.crop.x;
+            startCropY = imageData.crop.y;
+
+            document.addEventListener('touchmove', onTouchMove);
+            document.addEventListener('touchend', onTouchEnd);
+        });
+
+        function onMouseMove(e) {
+            if (!isDragging) return;
+            handleDrag(e.clientX, e.clientY);
+        }
+
+        function onTouchMove(e) {
+            if (!isDragging) return;
+            handleDrag(e.touches[0].clientX, e.touches[0].clientY);
+        }
+
+        function handleDrag(clientX, clientY) {
+            const imageData = state.images.get(id);
+            if (!imageData) return;
+
+            const imgRect = cropImage.getBoundingClientRect();
+            const scaleX = imgRect.width / imageData.imgWidth;
+            const scaleY = imgRect.height / imageData.imgHeight;
+
+            // Calculate delta in original image coordinates
+            const deltaX = (clientX - startX) / scaleX;
+            const deltaY = (clientY - startY) / scaleY;
+
+            // Calculate new position with bounds
+            let newX = startCropX + deltaX;
+            let newY = startCropY + deltaY;
+
+            // Constrain to image bounds
+            newX = Math.max(0, Math.min(newX, imageData.imgWidth - imageData.crop.width));
+            newY = Math.max(0, Math.min(newY, imageData.imgHeight - imageData.crop.height));
+
+            imageData.crop.x = newX;
+            imageData.crop.y = newY;
+
+            updateCropFrame(id);
+        }
+
+        function onMouseUp() {
+            isDragging = false;
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        }
+
+        function onTouchEnd() {
+            isDragging = false;
+            document.removeEventListener('touchmove', onTouchMove);
+            document.removeEventListener('touchend', onTouchEnd);
+        }
+    }
+
+    // Set orientation for an image
+    function setOrientation(id, orientation) {
+        const imageData = state.images.get(id);
+        if (!imageData || imageData.converted) return;
+
+        imageData.orientation = orientation;
+        imageData.crop = calculateInitialCrop(imageData.imgWidth, imageData.imgHeight, orientation);
+
+        // Update UI
+        document.getElementById(`landscape-${id}`).classList.toggle('active', orientation === 'landscape');
+        document.getElementById(`portrait-${id}`).classList.toggle('active', orientation === 'portrait');
+
+        updateCropFrame(id);
     }
 
     // Add images to the grid
@@ -91,17 +307,28 @@
 
             const id = generateId();
             const originalDataURL = await readFileAsDataURL(file);
+            const dimensions = await getImageDimensions(originalDataURL);
+
+            const orientation = dimensions.width > dimensions.height ? 'landscape' : 'portrait';
+            const crop = calculateInitialCrop(dimensions.width, dimensions.height, orientation);
 
             state.images.set(id, {
                 file: file,
                 originalDataURL: originalDataURL,
                 converted: false,
                 blob: null,
-                outputFilename: ImageConverter.getOutputFilename(file.name)
+                outputFilename: ImageConverter.getOutputFilename(file.name),
+                crop: crop,
+                orientation: orientation,
+                imgWidth: dimensions.width,
+                imgHeight: dimensions.height
             });
 
-            const card = createImageCard(id, file, originalDataURL);
+            const card = createImageCard(id, file, originalDataURL, dimensions.width, dimensions.height);
             imageGrid.appendChild(card);
+
+            // Initialize crop frame after DOM is ready
+            requestAnimationFrame(() => initializeCropFrame(id));
         }
 
         updateUI();
@@ -123,15 +350,19 @@
 
         const statusEl = document.getElementById(`status-${id}`);
         const previewEl = document.getElementById(`preview-${id}`);
-        const convertBtn = document.getElementById(`convert-${id}`);
+        const convertBtnEl = document.getElementById(`convert-${id}`);
         const downloadBtn = document.getElementById(`download-${id}`);
 
         try {
             statusEl.textContent = 'CONVERTING';
             statusEl.className = 'image-card-status';
-            convertBtn.disabled = true;
+            convertBtnEl.disabled = true;
 
-            const result = await ImageConverter.convert(imageData.file);
+            // Pass crop and orientation to converter
+            const result = await ImageConverter.convert(imageData.file, {
+                crop: imageData.crop,
+                orientation: imageData.orientation
+            });
 
             // Update state
             imageData.converted = true;
@@ -150,13 +381,13 @@
             previewEl.parentNode.replaceChild(img, previewEl);
 
             downloadBtn.disabled = false;
-            convertBtn.textContent = 'DONE';
+            convertBtnEl.textContent = 'DONE';
 
         } catch (error) {
             console.error('Conversion error:', error);
             statusEl.textContent = 'ERROR';
             statusEl.classList.add('error');
-            convertBtn.disabled = false;
+            convertBtnEl.disabled = false;
         }
 
         updateUI();
@@ -303,6 +534,13 @@
     imageModal.addEventListener('click', () => {
         imageModal.style.display = 'none';
         modalImage.src = '';
+    });
+
+    // Handle window resize - update all crop frames
+    window.addEventListener('resize', () => {
+        for (const [id] of state.images) {
+            updateCropFrame(id);
+        }
     });
 
 })();

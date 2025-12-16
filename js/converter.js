@@ -1,6 +1,6 @@
 /**
  * Image Converter
- * Handles resizing and color quantization for 7-color e-ink displays
+ * Handles cropping, resizing and color quantization for 7-color e-ink displays
  */
 
 const ImageConverter = {
@@ -38,8 +38,35 @@ const ImageConverter = {
     },
 
     /**
+     * Crop and resize image to target dimensions
+     * @param {HTMLImageElement} img - Source image
+     * @param {Object} crop - Crop area { x, y, width, height } in original image coordinates
+     * @param {Object} target - Target dimensions { width, height }
+     * @returns {ImageData} - Cropped and resized image data
+     */
+    cropAndResize(img, crop, target) {
+        const canvas = document.createElement('canvas');
+        canvas.width = target.width;
+        canvas.height = target.height;
+        const ctx = canvas.getContext('2d');
+
+        // Fill with white background (in case of any rounding issues)
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, target.width, target.height);
+
+        // Draw the cropped region scaled to target size
+        ctx.drawImage(
+            img,
+            crop.x, crop.y, crop.width, crop.height,  // Source rectangle
+            0, 0, target.width, target.height          // Destination rectangle
+        );
+
+        return ctx.getImageData(0, 0, target.width, target.height);
+    },
+
+    /**
      * Resize image using 'scale' mode (fit and center on white background)
-     * This matches the Python script's default behavior
+     * This is used as fallback when no crop is specified
      * @param {HTMLImageElement} img - Source image
      * @param {Object} target - Target dimensions { width, height }
      * @returns {ImageData} - Resized image data
@@ -75,53 +102,17 @@ const ImageConverter = {
     },
 
     /**
-     * Resize image using 'cut' mode (crop to fit)
-     * @param {HTMLImageElement} img - Source image
-     * @param {Object} target - Target dimensions { width, height }
-     * @returns {ImageData} - Resized image data
-     */
-    resizeCut(img, target) {
-        const canvas = document.createElement('canvas');
-        canvas.width = target.width;
-        canvas.height = target.height;
-        const ctx = canvas.getContext('2d');
-
-        // Fill with white background
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, target.width, target.height);
-
-        // Calculate scale to cover the target area
-        const scaleRatio = Math.max(
-            target.width / img.width,
-            target.height / img.height
-        );
-
-        // Calculate resized dimensions
-        const resizedWidth = Math.round(img.width * scaleRatio);
-        const resizedHeight = Math.round(img.height * scaleRatio);
-
-        // Center the image (some parts will be cropped)
-        const left = Math.floor((target.width - resizedWidth) / 2);
-        const top = Math.floor((target.height - resizedHeight) / 2);
-
-        // Draw resized image
-        ctx.drawImage(img, left, top, resizedWidth, resizedHeight);
-
-        return ctx.getImageData(0, 0, target.width, target.height);
-    },
-
-    /**
      * Convert an image file to 7-color e-ink format
      * @param {File} file - Image file to convert
      * @param {Object} options - Conversion options
-     * @param {string} options.mode - 'scale' or 'cut' (default: 'scale')
+     * @param {Object} options.crop - Crop area { x, y, width, height }
+     * @param {string} options.orientation - 'landscape' or 'portrait'
      * @param {boolean} options.dither - Apply dithering (default: true)
-     * @param {string} options.orientation - 'landscape', 'portrait', or 'auto' (default: 'auto')
      * @returns {Promise<Object>} - Conversion result { imageData, blob, dataURL }
      */
     async convert(file, options = {}) {
-        const mode = options.mode || 'scale';
         const dither = options.dither !== false; // Default to true (Floyd-Steinberg)
+        const crop = options.crop;
         const orientation = options.orientation || 'auto';
 
         // Load image
@@ -137,11 +128,13 @@ const ImageConverter = {
             target = this.getTargetDimensions(img.width, img.height);
         }
 
-        // Resize image
+        // Crop and resize image
         let imageData;
-        if (mode === 'cut') {
-            imageData = this.resizeCut(img, target);
+        if (crop && crop.width && crop.height) {
+            // Use specified crop area
+            imageData = this.cropAndResize(img, crop, target);
         } else {
+            // Fallback to scale mode (fit entire image)
             imageData = this.resizeScale(img, target);
         }
 
