@@ -22,6 +22,8 @@
     const progressBar = document.getElementById('progressBar');
     const progressFill = document.getElementById('progressFill');
     const progressText = document.getElementById('progressText');
+    const imageModal = document.getElementById('imageModal');
+    const modalImage = document.getElementById('modalImage');
 
     // Generate unique ID
     function generateId() {
@@ -288,5 +290,19 @@
     // Prevent default drag behavior on document
     document.addEventListener('dragover', (e) => e.preventDefault());
     document.addEventListener('drop', (e) => e.preventDefault());
+
+    // Image click to open modal
+    imageGrid.addEventListener('click', (e) => {
+        if (e.target.classList.contains('preview-image')) {
+            modalImage.src = e.target.src;
+            imageModal.style.display = 'block';
+        }
+    });
+
+    // Click modal to close
+    imageModal.addEventListener('click', () => {
+        imageModal.style.display = 'none';
+        modalImage.src = '';
+    });
 
 })();
