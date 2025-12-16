@@ -22,8 +22,8 @@
     const progressBar = document.getElementById('progressBar');
     const progressFill = document.getElementById('progressFill');
     const progressText = document.getElementById('progressText');
-    const imagePopup = document.getElementById('imagePopup');
-    const popupImage = document.getElementById('popupImage');
+    const imageModal = document.getElementById('imageModal');
+    const modalImage = document.getElementById('modalImage');
 
     // Generate unique ID
     function generateId() {
@@ -291,59 +291,11 @@
     document.addEventListener('dragover', (e) => e.preventDefault());
     document.addEventListener('drop', (e) => e.preventDefault());
 
-    // Image hover popup
-    function showPopup(src, e) {
-        popupImage.src = src;
-        imagePopup.style.display = 'block';
-        positionPopup(e);
-    }
-
-    function hidePopup() {
-        imagePopup.style.display = 'none';
-        popupImage.src = '';
-    }
-
-    function positionPopup(e) {
-        const padding = 20;
-        let x = e.clientX + padding;
-        let y = e.clientY + padding;
-
-        // Get popup dimensions after image loads
-        const popupRect = imagePopup.getBoundingClientRect();
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-
-        // Adjust if popup would go off-screen
-        if (x + popupRect.width > viewportWidth - padding) {
-            x = e.clientX - popupRect.width - padding;
-        }
-        if (y + popupRect.height > viewportHeight - padding) {
-            y = e.clientY - popupRect.height - padding;
-        }
-
-        // Ensure popup doesn't go off left/top edge
-        x = Math.max(padding, x);
-        y = Math.max(padding, y);
-
-        imagePopup.style.left = x + 'px';
-        imagePopup.style.top = y + 'px';
-    }
-
-    imageGrid.addEventListener('mouseenter', (e) => {
+    // Image click to open modal
+    imageGrid.addEventListener('click', (e) => {
         if (e.target.classList.contains('preview-image')) {
-            showPopup(e.target.src, e);
-        }
-    }, true);
-
-    imageGrid.addEventListener('mouseleave', (e) => {
-        if (e.target.classList.contains('preview-image')) {
-            hidePopup();
-        }
-    }, true);
-
-    imageGrid.addEventListener('mousemove', (e) => {
-        if (imagePopup.style.display === 'block') {
-            positionPopup(e);
+            modalImage.src = e.target.src;
+            imageModal.style.display = 'block';
         }
     });
 
