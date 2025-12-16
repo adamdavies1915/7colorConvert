@@ -295,13 +295,13 @@
     imageGrid.addEventListener('click', (e) => {
         if (e.target.classList.contains('preview-image')) {
             modalImage.src = e.target.src;
-            imageModal.classList.add('visible');
+            imageModal.style.display = 'block';
         }
     });
 
     // Click modal to close
     imageModal.addEventListener('click', () => {
-        imageModal.classList.remove('visible');
+        imageModal.style.display = 'none';
         modalImage.src = '';
     });
 
