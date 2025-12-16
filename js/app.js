@@ -300,10 +300,50 @@
         updateCropFrame(id);
     }
 
+    // Check if file is HEIC/HEIF format
+    function isHeicFile(file) {
+        const name = file.name.toLowerCase();
+        return name.endsWith('.heic') || name.endsWith('.heif') ||
+               file.type === 'image/heic' || file.type === 'image/heif';
+    }
+
+    // Convert HEIC file to JPEG blob
+    async function convertHeicToJpeg(file) {
+        try {
+            const blob = await heic2any({
+                blob: file,
+                toType: 'image/jpeg',
+                quality: 0.95
+            });
+            // heic2any may return an array for multi-image HEIC, take first
+            const resultBlob = Array.isArray(blob) ? blob[0] : blob;
+            // Create a new File object with .jpg extension
+            const newName = file.name.replace(/\.(heic|heif)$/i, '.jpg');
+            return new File([resultBlob], newName, { type: 'image/jpeg' });
+        } catch (error) {
+            console.error('HEIC conversion error:', error);
+            throw new Error('Failed to convert HEIC file');
+        }
+    }
+
     // Add images to the grid
     async function addImages(files) {
-        for (const file of files) {
-            if (!file.type.startsWith('image/')) continue;
+        for (let file of files) {
+            // Check if it's an image or HEIC file
+            const isImage = file.type.startsWith('image/');
+            const isHeic = isHeicFile(file);
+
+            if (!isImage && !isHeic) continue;
+
+            // Convert HEIC to JPEG first
+            if (isHeic) {
+                try {
+                    file = await convertHeicToJpeg(file);
+                } catch (error) {
+                    console.error('Failed to convert HEIC:', error);
+                    continue; // Skip this file
+                }
+            }
 
             const id = generateId();
             const originalDataURL = await readFileAsDataURL(file);
